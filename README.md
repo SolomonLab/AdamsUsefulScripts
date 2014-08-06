@@ -12,4 +12,4 @@ HMMs against a reference amino-acid sequence set to find best matches. Returns c
 
 **Dependancies:** TrimAL, hmmbuild, hmmsearch, MUSCLE, awk, sed
 
-**Usage:** hmmMakeFind.sh _path/to/multi.fasta_ _path/TargetDB.fasta_ _output.csv_
+**Usage:** hmmMakeFind.sh _(path/to/multi.fasta)_   _(path/TargetDB.fasta)_   _(output.csv)_
