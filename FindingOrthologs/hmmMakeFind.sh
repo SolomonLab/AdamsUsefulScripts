@@ -74,14 +74,18 @@ name="${file%.*}"
 hmmsearch --noali --tblout ./FOUND_HMM/$name.tab ./FUNY_HMM/$name.hmm $2
 echo $name': Queried against DB '$2
 #Extract hits from search report, add to list.
-awk '!/#/ {print $0}' ./FOUND_HMM/$name.tab >> TMP/$3.out
+awk '!/#/ {print $0}' ./FOUND_HMM/$name.tab >> TMP/$3.raw
 echo $name': HMM query results written to output!'
 done
+
+#Convert hmmsearch results to CSV, sort by query name then bitscore (highest to lowest)
+sed 's/[[:space:]]\{1,\}/,/gp' TMP/$3.raw > TMP/$3.cols
+sort --field-separator=',' -k3,3 -k6,6nr TMP/$3.cols > TMP/$3.sorted
 
 #Reformat found HMM matches as csv.
 echo ',,,,full sequence,,,best 1 domain,,,domain number estimation,,,,,,,,' > $3
 echo 'target_name,accession,query_name,accession,E-value,score,bias,E-value,score,bias,exp,reg,clu,ov,env,dom,rep,inc,description of target' >> $3
-sed 's/[[:space:]]\{1,\}/,/gp' TMP/$3.out >> $3
+awk '{print $0}' TMP/$3.sorted >> $3
 echo 'All HMMSearch results saved as formatted CSV file!'
 
 #Dump tmp dir
