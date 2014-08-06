@@ -3,8 +3,8 @@
 #HMMs against a reference amino-acid sequence set to find best matches.
 #Dependancies: TrimAL, hmmbuild, hmmsearch, MUSCLE, awk, sed
 
-echo "Usage hmmMakeFind.sh path/to/multi.fasta path/TargetDB.fasta output.txt"
-# i.e. $ hmmMakeFind.sh clusters PsnTransCDS.fa output.csv
+echo "Usage hmmMakeFind.sh data/AA_Family.fasta TargetDB.fasta output.csv hmmScoreTreshold"
+# i.e. $ hmmMakeFind.sh clusters myTransCDS.fa output.csv
 
 rm $3
 
@@ -15,8 +15,8 @@ rm -rf ./MUSCLE
 mkdir ./MUSCLE
 mkdir ./MUSCLE/TMP
 
-rm -rf ./FUNY_HMM
-mkdir ./FUNY_HMM
+rm -rf ./CREATED_HMM
+mkdir ./CREATED_HMM
 
 rm -rf ./FOUND_HMM
 mkdir ./FOUND_HMM
@@ -46,6 +46,8 @@ echo $name': Realign complete!'
 #-gt = fraction of seqs with gap allowed i.e. out of 20 seqs 4 must have residues in column.
 trimal -in ./MUSCLE/TMP/$name'_second'.aln -out ./MUSCLE/$name.aln -gt 0.2
 echo $name': Trimmed poorly conserved blocks from alignment.'
+#Use this instead of last Trimal step if do not want to remove highly gapped blocks from alignment
+#cp ./MUSCLE/TMP/$name'_second'.aln ./MUSCLE/$name.aln
 done
 
 #Delete intermediate alignments.
@@ -62,16 +64,16 @@ echo $seqcount
 hmmname=$name'_'$seqcount
 hmmname=$(echo $hmmname | awk '{gsub(/[[:space:]]/,"")} {print $0}')
 echo $hmmname
-hmmbuild -n $hmmname -o ./FUNY_HMM/$name.log --amino ./FUNY_HMM/$name.hmm ./MUSCLE/$name.aln
+hmmbuild -n $hmmname -o ./CREATED_HMM/$name.log --amino ./CREATED_HMM/$name.hmm ./MUSCLE/$name.aln
 echo $name': HMM created!'
 done
 
-for i in $(find ./FUNY_HMM -name '*.hmm');
+for i in $(find ./CREATED_HMM -name '*.hmm');
 do
 file=$(basename $i)
 name="${file%.*}"
 #Search for HMM matches in a multi-fasta list.
-hmmsearch --noali --tblout ./FOUND_HMM/$name.tab ./FUNY_HMM/$name.hmm $2
+hmmsearch --incT $4 --noali --tblout ./FOUND_HMM/$name.tab ./CREATED_HMM/$name.hmm $2
 echo $name': Queried against DB '$2
 #Extract hits from search report, add to list.
 awk '!/#/ {print $0}' ./FOUND_HMM/$name.tab >> TMP/$3.raw
@@ -80,7 +82,10 @@ done
 
 #Convert hmmsearch results to CSV, sort by query name then bitscore (highest to lowest)
 sed 's/[[:space:]]\{1,\}/,/gp' TMP/$3.raw > TMP/$3.cols
-sort --field-separator=',' -k3,3 -k6,6nr TMP/$3.cols > TMP/$3.sorted
+#Return only rows with a score (col6) above threshold from a comma delimited file. 
+awk -F '[,]' -v x=$4 '$6 >= x {print $0}' TMP/$3.cols > TMP/$3.threshold
+#Sort comma delimited file by col3 then col6 (as number, reverse order)
+sort --field-separator=',' -k3,3 -k6,6nr TMP/$3.threshold > TMP/$3.sorted
 
 #Reformat found HMM matches as csv.
 echo ',,,,full sequence,,,best 1 domain,,,domain number estimation,,,,,,,,' > $3
